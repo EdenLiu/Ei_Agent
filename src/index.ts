@@ -1,8 +1,10 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config({ override: true });
 
 import { join } from "node:path";
 import { runAnalysis } from "./agent.js";
 import { collectProductInput, parseArgs, productLabel, validateInput } from "./cli.js";
+import { loadOpenAIConfig } from "./config.js";
 import { OpenAIResearchClient } from "./openaiResearchClient.js";
 import { writeResearchOutputs } from "./outputWriter.js";
 
@@ -11,10 +13,13 @@ async function main(): Promise<void> {
   validateInput(args);
 
   const outputRoot = args.outputRoot ?? join(process.cwd(), "outputs");
-  const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
-  const client = new OpenAIResearchClient(process.env.OPENAI_API_KEY, model);
+  const openAIConfig = loadOpenAIConfig(process.env);
+  const client = new OpenAIResearchClient(openAIConfig);
 
-  console.log(`Researching ${productLabel(args)} with ${model}...`);
+  console.log(`Researching ${productLabel(args)} with ${openAIConfig.model}...`);
+  if (openAIConfig.baseURL) {
+    console.log(`Using OpenAI-compatible base URL: ${openAIConfig.baseURL}`);
+  }
   const result = await runAnalysis(args, client);
   const paths = await writeResearchOutputs(outputRoot, args, result);
 

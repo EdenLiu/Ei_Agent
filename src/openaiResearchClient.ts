@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { Response, ResponseOutputText } from "openai/resources/responses/responses";
+import type { OpenAIConfig } from "./config.js";
 import { createEmptySpec, normalizeSpec } from "./schema.js";
 import { normalizeSources } from "./sourcePolicy.js";
 import type { ProductInput, RequirementSpec, ResearchClient, ResearchResult, Source } from "./types.js";
@@ -10,19 +11,18 @@ type ResearchJson = {
   spec?: RequirementSpec;
 };
 
-const DEFAULT_MODEL = "gpt-4.1-mini";
-
 export class OpenAIResearchClient implements ResearchClient {
   private readonly client: OpenAI;
   private readonly model: string;
+  private readonly baseURL?: string;
 
-  constructor(apiKey: string | undefined, model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL) {
-    if (!apiKey) {
-      throw new Error("Missing OPENAI_API_KEY. Create a .env file or set the environment variable.");
-    }
-
-    this.client = new OpenAI({ apiKey });
-    this.model = model;
+  constructor(config: OpenAIConfig) {
+    this.client = new OpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    });
+    this.model = config.model;
+    this.baseURL = config.baseURL;
   }
 
   async research(input: ProductInput): Promise<ResearchResult> {
@@ -48,7 +48,9 @@ export class OpenAIResearchClient implements ResearchClient {
       });
     } catch (error) {
       throw new Error(
-        `OpenAI research failed for model "${this.model}". Ensure OPENAI_MODEL supports Responses API hosted web_search and that hosted tools are enabled for the project. ${
+        `OpenAI research failed for model "${this.model}"${
+          this.baseURL ? ` via base URL "${this.baseURL}"` : ""
+        }. Ensure OPENAI_MODEL and OPENAI_BASE_URL are configured correctly. ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
